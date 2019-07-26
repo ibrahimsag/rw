@@ -59,12 +59,12 @@ as_main = BS.putStrLn "Hello, Haskell!" >> (simple simpleModule >>= BS.putStrLn)
 
 type E_Terminator = (Name, Maybe Operand, [Name], [ByteString])
 
-type E_Instruction = (Name, [Operand])
+type E_Instruction = (Name, [Operand], [Operand])
 
 type E_Block = (Name, [(Name, E_Instruction)], (Name, E_Terminator))
 type E_Def = (Name, [Name], [E_Block])
 
-data E_Ty   = E_Fun | E_Label | E_Instruction | E_Terminator | E_Param | E_Operand | E_Dest
+data E_Ty   = E_Fun | E_Label | E_Instruction | E_Terminator | E_Param | E_Operand | E_Store | E_Dest
 type E_Cell = (E_Ty, Maybe ByteString, ByteString)
 
 ref :: Operand -> Maybe ByteString
@@ -83,7 +83,9 @@ scatter defs = concatMap scat_def defs
     ref_to_cell bs = Just (E_Operand, Nothing, bs)
 
     scat_ops = catMaybes . map ( (>>= ref_to_cell) . ref)
-    scat_inst (n, (n_i, ops)) = scat_ops ops ++ [(E_Instruction, Just (rast n), rast n_i)]
+
+    scat_stores = map (\dest -> (E_Store, ref dest, fromMaybe (error "no name for store") (ref dest)))
+    scat_inst (n, (n_i, ops, sts)) = scat_ops ops ++ scat_stores sts ++ [(E_Instruction, Just (rast n), rast n_i)]
 
     scat_dests = map (\(dest, t) -> (E_Dest, Just (rast dest), t))
     scat_term (n, maybe_op, ds, ts) = (scat_dests (zip ds ts))
@@ -138,17 +140,21 @@ gather m = catMaybes $ map map_def (moduleDefinitions m)
       Br dest m -> ("br", Nothing, [dest], [""])
     map_instruction :: AST.Instruction -> (E_Instruction)
     map_instruction inst = case inst of
-      Phi ty incomingValues m -> ("phi", map fst incomingValues)
-      Add nsw nuw operand0 operand1 m -> ("add", [operand0, operand1])
-      Sub nsw nuw operand0 operand1 m -> ("sub", [operand0, operand1])
-      Mul nsw nuw operand0 operand1 m -> ("mul", [operand0, operand1])
-      And operand0 operand1 m -> ("and", [operand0, operand1])
-      Or  operand0 operand1 m -> ("or",  [operand0, operand1])
-      Xor operand0 operand1 m -> ("xor", [operand0, operand1])
-      ICmp ipred operand0 operand1 m -> ("icmp", [operand0, operand1])
-      ZExt operand ty m -> ("zext", [operand])
-      Call tc cc ra f args fa m -> ("call", [fromRight (error "inline assembly encountered") f])
-      _     -> ("null", [])
+      Phi ty incomingValues m -> ("phi", map fst incomingValues, [])
+      Add nsw nuw operand0 operand1 m -> ("add", [operand0, operand1], [])
+      Sub nsw nuw operand0 operand1 m -> ("sub", [operand0, operand1], [])
+      Mul nsw nuw operand0 operand1 m -> ("mul", [operand0, operand1], [])
+      And operand0 operand1 m -> ("and", [operand0, operand1], [])
+      Or  operand0 operand1 m -> ("or",  [operand0, operand1], [])
+      Xor operand0 operand1 m -> ("xor", [operand0, operand1], [])
+      ICmp ipred operand0 operand1 m -> ("icmp", [operand0, operand1], [])
+      ZExt operand ty m -> ("zext", [operand], [])
+      Call tc cc ra f args fa m -> ("call", [fromRight (error "inline assembly encountered") f], [])
+      GetElementPtr inbounds address indices md -> ("gep", [address], [])
+      Store volatile address value maybeAtomicity alignment metadata -> ("store", [value], [address])
+      Load volatile address maybeAtomicity alignment metadata -> ("load", [address], [])
+      Alloca ty num alignment md -> ("alloca", [], [])
+      _     -> ("null", [], [])
 
 bg = PixelRGBA8 0 0 0 0
 white = PixelRGBA8 255 255 255 255
@@ -167,6 +173,7 @@ ty_color ty = case ty of
   E_Instruction -> pal_red
   E_Terminator -> pal_bl2
   E_Operand -> pal_green
+  E_Store -> pal_green
   E_Param   -> pal_green
   E_Dest -> pal_bl2
 
@@ -176,6 +183,7 @@ ty_width ty = case ty of
   E_Instruction -> 2
   E_Terminator -> 2
   E_Operand -> 2
+  E_Store -> 2
   E_Param   -> 2
   E_Dest -> 2
 
@@ -185,7 +193,7 @@ t spine_length font spine = renderDrawing size size black $
           (flip traverse_) spine $ \(ty, row_i, col_i, t) -> do
             withTexture (uniformTexture (ty_color ty)) $ do
               stroke (ty_width ty) JoinRound (CapRound, CapRound) $ do
-                rectangle (vec (row_i * 48 - 2) (col_i * 48 - 2)) 48 48
+                rectangle (vec (row_i * 48 - 2) (col_i * 48 - 2)) 46 46
             withTexture (uniformTexture white) $ do
               stroke 2 JoinRound (CapRound, CapRound) $ do
                 rectangle (vec (row_i * 48 - 2) (col_i * 48 - 2)) 4 4
@@ -197,7 +205,7 @@ t spine_length font spine = renderDrawing size size black $
 main :: IO ()
 main = do
   m <- withContext $ \context -> do
-      m <- withModuleFromLLVMAssembly context (File "fact.ll") moduleAST
+      m <- withModuleFromLLVMAssembly context (File "fib.ll") moduleAST
       bs <- withModuleFromAST context m moduleLLVMAssembly
       BS.putStrLn bs
       return m
@@ -211,6 +219,7 @@ main = do
         E_Terminator  -> (label_map, operand_map,                i + 1, (ty, n, i, t) : prev)
         E_Fun         -> (label_map, operand_map,                i + 1, (ty, n, i, t) : prev)
         E_Operand     -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
+        E_Store       -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
         E_Dest        -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
 
       (label_map, operand_map, spine_length, nerves1) = foldl' first_pass (Map.empty, Map.empty, 0, []) nerves
@@ -222,6 +231,7 @@ main = do
         E_Terminator  -> (ty, i, i, t) : prev
         E_Fun         -> (ty, i, i, t) : prev
         E_Operand     -> (ty, Map.findWithDefault 0 t operand_map, i, t) : prev
+        E_Store       -> (ty, i, Map.findWithDefault 0 t operand_map, t) : prev
         E_Dest        -> (ty, i, Map.findWithDefault i (fromMaybe (error "unknown dest label") n) label_map, t) : prev
 
       nerves2 = foldl' second_pass [] nerves1
