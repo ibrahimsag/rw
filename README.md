@@ -8,7 +8,7 @@ Assembly languages could be useful for assembling.
 
 ### HOW?
 
-Sparse tables are extremely easy to read. Machines already excel at them. Digital screens don't
+Sparse matrices are extremely easy to read. Machines already excel at them. Digital screens don't
 waste empty space. Hear this out.
 
 Sequence of instructions, hierarchy of syntax, web of bindings. All three need to be ready
@@ -36,7 +36,7 @@ form of folding is in the works.
 
 ### WHEN?
 
-It would not be wise to deal with sparse matrices on paper. Digital displays, on the other hand, is full of surprises.
+It would not have been wise to deal with sparse matrices on paper. Digital displays, on the other hand, is full of surprises.
 
 ### ASPIRATIONS
 
