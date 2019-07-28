@@ -1,4 +1,4 @@
-@.str = private unnamed_addr constant [18 x i8] c"%d <-- factorial\0A\00", align 1
+@.str = private unnamed_addr constant [18 x i8] c"%d <-- fibonacci\0A\00", align 1
 
 %ab = type {i32, i32}
 

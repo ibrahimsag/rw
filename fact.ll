@@ -22,11 +22,8 @@ fin:
 define i32 @main(i32 %argc, i8** %argv) {
 entry:
   %0 = call i32 @factorial(i32 3)
-  %1 = mul i32 %0, 7
-  %2 = icmp eq i32 %1, 42
-  %3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([18 x i8], [18 x i8]* @.str, i32 0, i32 0), i32 %0)
-  %result = zext i1 %2 to i32
-  ret i32 %result
+  %1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([18 x i8], [18 x i8]* @.str, i32 0, i32 0), i32 %0)
+  ret i32 0
 }
 
 declare i32 @printf(i8* nocapture readonly, ...);
