@@ -1,12 +1,12 @@
-#RW
+## RW
 
 An experiment in code presentation.
 
-## WHY?
+### WHY?
 
 Assembly languages could be useful for assembling.
 
-## HOW?
+### HOW?
 
 Sparse tables are extremely easy to read. Machines already excell at them. Digital screens don't
 waste empty space. Hear this out.
@@ -34,11 +34,11 @@ Here is for fibonacci with some pointer operations on the stack.
 We let go of static renderings beyond these examples. At least in full detail. Some
 form of folding is in the works.
 
-## WHEN?
+### WHEN?
 
 It would not be wise to deal with sparse matrices on paper. Digital displays, on the other hand, is full of surprises.
 
-## ASPIRATIONS
+### ASPIRATIONS
 
 It would be good to have tools and toys we can break and make again. We need couplings we can trace and coalesce.
 
