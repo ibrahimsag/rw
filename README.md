@@ -8,18 +8,19 @@ Assembly languages could be useful for assembling.
 
 ### HOW?
 
-Sparse matrices are extremely easy to read. Machines already excel at them. Digital screens don't
+Sparse matrices are extremely easy to read. Machines already excel at them. Digital screens do not
 waste empty space. Hear this out.
 
 Sequence of instructions, hierarchy of syntax, web of bindings. All three need to be ready
-for code to be present. The actual experiment here is to anchor the sequential spine along the diagonal of an
-adjacency matrix. Orthogonal frames extend to nested entities very easily.
+for code to be present.
 
-Control-flow and data-flow graphs are not blurred. We aren't talking about a half-baked graph layout. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
+The actual experiment here is to anchor the sequential spine along the diagonal of an adjacency matrix.
+
+Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. We are not talking about a half-baked graph layout. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
 Cells around the diagonal represent local links; reaching further out around the corner.
 
 Here is an initial rendering on spreadsheet, start from the bottom right and climb up to return statement
-on the top left.
+on the top left. Work against gravitational potential is too good to pass.
 
 ![](images/FactorialRed.png)
 
