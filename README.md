@@ -4,12 +4,11 @@ An experiment in code presentation.
 
 ### WHY?
 
-Assembly languages could be useful for assembling.
+Real takes detail. Document jumps or interactive tv make for astronomical lack of imagination in an era that substitutes curios for wonderous.
 
 ### HOW?
 
-Sparse matrices are extremely easy to read. Machines already excel at them. Digital screens do not
-waste empty space. Hear this out.
+Sparse matrices are extremely easy to read. Machines already excel at them.
 
 Sequence of instructions, hierarchy of syntax, web of bindings. All three need to be ready
 for code to be present.
