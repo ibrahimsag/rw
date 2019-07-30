@@ -8,7 +8,7 @@ Assembly languages can be useful for assembling.
 
 ### HOW?
 
-Sparse matrices are extremely easy to read. Machines already excel at them.
+Sparse matrices are extremely easy to read. Machines already excel at them. Digital displays do not waste empty space. Hear this out.
 
 Sequence of instructions, hierarchy of syntax, web of bindings. All three need to be ready
 for code to be present.
