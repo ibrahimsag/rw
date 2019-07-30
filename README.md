@@ -1,10 +1,10 @@
 ## RW
 
-Investigating machine presence.
+Questioning machine presence.
 
 ### WHY?
 
-Real takes detail. Document jumps or interactive tv make for astronomical lack of imagination in an era that substitutes curios for wonderous.
+Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination.
 
 ### HOW?
 
