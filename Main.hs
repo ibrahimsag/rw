@@ -4,6 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
@@ -24,6 +25,9 @@ import Data.ByteString.Char8 (ByteString)
 
 import qualified Data.ByteString.Short as SBS
 import Data.ByteString.Short (ShortByteString, toShort, fromShort)
+
+import Control.Monad.Trans
+import Control.Monad.State.Strict
 
 import Text.Ascii (ascii)
 import LLVM.AST hiding (function)
@@ -47,96 +51,83 @@ import Graphics.Rasterific.Transformations
 import Graphics.Text.TrueType (Font, loadFontFile)
 
 
-simpleModule :: LLVM.AST.Module
-simpleModule = buildModule "exampleModule" $ mdo
-  function "Factorial" [(AST.i32, "a"), (AST.i32, "b")] AST.i32 $ \[a, b] -> mdo
-    entry <- block `named` "entry"; do
-      c <- add a b
-      ret c
-
-simple :: LLVM.AST.Module -> IO ByteString
-simple m = withContext $ \context -> 
-    withModuleFromAST context m moduleLLVMAssembly
-
-as_main :: IO ()
-as_main = BS.putStrLn "Hello, Haskell!" >> (simple simpleModule >>= BS.putStrLn)
-
 type E_Terminator = (Name, Maybe Operand, [Name], [ByteString])
 
-type E_Instruction = (Name, [Operand], [Operand])
+data O_Type = O_To | O_From
+type E_Instruction = (Name, [(O_Type, Operand)])
 
-type E_Block = (Name, [(Name, E_Instruction)], (Name, E_Terminator))
-type E_Def = (Name, [Name], [E_Block])
+type E_Block = (Int, Name, [(Int, Name, E_Instruction)], (Int, Name, E_Terminator))
 
-data E_Ty   = E_Fun | E_Label | E_Instruction | E_Terminator | E_Param | E_Operand | E_Store | E_Dest
-type E_Cell = (E_Ty, Maybe ByteString, ByteString)
+type E_Def = (Int, Name, [(Int, Name)], [E_Block])
 
-ref :: Operand -> Maybe ByteString
-ref op = case op of
-  LocalReference ty name -> Just (rast name)
-  _ -> Nothing
+data GatherState = GatherState {
+    name_map :: Map.Map Name Int
+  , next_index :: Int
+  }
 
-rast :: Name -> ByteString
-rast n = case n of
-  Name sbs -> fromShort sbs
-  UnName w -> "%" <> BS.pack (show w)
+initialGather :: GatherState
+initialGather = GatherState {
+    name_map = Map.empty
+  , next_index = 0
+  }
 
-scatter :: [E_Def] -> [E_Cell]
-scatter defs = concatMap scat_def defs
-  where
-    ref_to_cell bs = Just (E_Operand, Nothing, bs)
+type Gather = State GatherState
 
-    scat_ops = catMaybes . map ( (>>= ref_to_cell) . ref)
+get_and_increment_index :: Gather Int
+get_and_increment_index = do
+  s <- get
+  let ind = next_index s
+  put (s {next_index = ind + 1})
+  pure ind
 
-    scat_stores = map (\dest -> (E_Store, ref dest, fromMaybe (error "no name for store") (ref dest)))
-    scat_inst (n, (n_i, ops, sts)) = scat_ops ops ++ scat_stores sts ++ [(E_Instruction, Just (rast n), rast n_i)]
+insert_name :: Name -> Int -> Gather ()
+insert_name n i = do
+  s <- get
+  let m = name_map s
+  put (s {name_map = Map.insert n i m})
+  pure ()
 
-    scat_dests = map (\(dest, t) -> (E_Dest, Just (rast dest), t))
-    scat_term (n, maybe_op, ds, ts) = (scat_dests (zip ds ts))
-                                      ++ maybeToList (maybe_op >>= ref >>= ref_to_cell)
-                                      ++ [(E_Terminator, Nothing, rast n)]
-
-    scat_block (n, is, (term_n, t)) =  scat_term t ++ (concatMap scat_inst (reverse is)) ++ [(E_Label, Nothing, rast n)]
-    scat_param n = (E_Param, Nothing, rast n)
-    scat_def (n, ps, blocks) = (E_Fun, Nothing, rast n) : (concatMap scat_block (reverse blocks)) ++ (map scat_param (reverse ps))
-
-gather :: LLVM.AST.Module -> [E_Def]
+gather :: LLVM.AST.Module -> [Gather E_Def]
 gather m = catMaybes $ map map_def (moduleDefinitions m)
   where
-    map_term named_t = case named_t of
-      (n := t) -> (n, map_terminator t)
-      Do t     -> (mkName "u", map_terminator t)
-    map_inst named_i = case named_i of
-      (n := i) -> (n, map_instruction i)
-      Do i     -> (mkName "u", map_instruction i)
-    map_basicBlock (BasicBlock name instructions terminator) 
-        = (name, map map_inst instructions, map_term terminator)
-    map_parameter (Parameter ty name attrs) = name
-    map_func name parameters basicBlocks = (name, map map_parameter parameters, map map_basicBlock basicBlocks)
-    map_global g = case g of
-      Function 
-          linkage
-          visibility
-          dllStorageClass
-          callingConvention
-          returnAttributes
-          returnType
-          name
-          parameters
-          functionAttributes
-          section
-          comdat
-          alignment
-          garbageCollectorName
-          prefix
-          basicBlocks
-          personalityFunction
-          metadata
-        -> Just (map_func name (fst parameters) basicBlocks)
-      _ -> Nothing
+    map_def :: Definition -> Maybe (Gather E_Def)
     map_def d = case d of
       GlobalDefinition g -> map_global g
       _ -> Nothing
+    map_global :: Global -> Maybe (Gather E_Def)
+    map_global g = case g of
+      Function linkage visibility dllStorageClass callingConvention returnAttributes returnType name parameters functionAttributes section comdat alignment garbageCollectorName prefix basicBlocks personalityFunction metadata
+        -> Just (map_func name (fst parameters) basicBlocks)
+      _ -> Nothing
+    map_func :: Name -> [Parameter] -> [BasicBlock] -> Gather E_Def
+    map_func name parameters basicBlocks = do
+      ind <- get_and_increment_index
+      blocks <- traverse map_basicBlock (reverse basicBlocks)
+      params <- traverse map_parameter (reverse parameters)
+      pure (ind, name, params, blocks)
+    map_parameter (Parameter ty name attrs) = do
+      ind <- get_and_increment_index
+      insert_name name ind
+      pure (ind, name)
+    map_basicBlock :: BasicBlock -> Gather (E_Block)
+    map_basicBlock (BasicBlock name instructions terminator) = do
+      t <- map_term terminator
+      inst <- traverse map_inst (reverse instructions)
+      ind <- get_and_increment_index
+      insert_name name ind
+      pure (ind, name, inst, t)
+    map_term named_t = do
+      ind <- get_and_increment_index
+      case named_t of
+        (n := t) -> pure (ind, n, map_terminator t)
+        Do t     -> pure (ind, mkName "u",  map_terminator t)
+    map_inst named_i = do
+      ind <- get_and_increment_index
+      case named_i of
+        (n := instr) -> do
+          insert_name n ind
+          pure (ind, n, map_instruction instr)
+        Do i     -> pure (ind, mkName "u", map_instruction i)
     map_terminator :: AST.Terminator -> (E_Terminator)
     map_terminator block_terminator = case block_terminator of
       Ret returnOperand m -> ("ret", returnOperand, [], [])
@@ -145,27 +136,77 @@ gather m = catMaybes $ map map_def (moduleDefinitions m)
       _ -> ("u", Nothing, [], [])
     map_instruction :: AST.Instruction -> (E_Instruction)
     map_instruction inst = case inst of
-      Phi ty incomingValues m -> ("phi", map fst incomingValues, [])
-      Add nsw nuw operand0 operand1 m -> ("add", [operand0, operand1], [])
-      Sub nsw nuw operand0 operand1 m -> ("sub", [operand0, operand1], [])
-      Mul nsw nuw operand0 operand1 m -> ("mul", [operand0, operand1], [])
-      And operand0 operand1 m -> ("and", [operand0, operand1], [])
-      Or  operand0 operand1 m -> ("or",  [operand0, operand1], [])
-      Xor operand0 operand1 m -> ("xor", [operand0, operand1], [])
-      ICmp ipred operand0 operand1 m -> ("icmp", [operand0, operand1], [])
-      ZExt operand ty m -> ("zext", [operand], [])
-      Call tc cc ra f args fa m -> ("call", [fromRight (error "inline assembly encountered") f], [])
-      GetElementPtr inbounds address indices md -> ("gep", [address], [])
-      Store volatile address value maybeAtomicity alignment metadata -> ("store", [value], [address])
-      Load volatile address maybeAtomicity alignment metadata -> ("load", [address], [])
-      Alloca ty num alignment md -> ("alloca", [], [])
-      _     -> ("null", [], [])
+      Phi ty incomingValues m -> ("phi", map ((O_From,) . fst) incomingValues)
+      Add nsw nuw operand0 operand1 m -> ("add", map (O_From,) [operand0, operand1])
+      Sub nsw nuw operand0 operand1 m -> ("sub", map (O_From,) [operand0, operand1])
+      Mul nsw nuw operand0 operand1 m -> ("mul", map (O_From,) [operand0, operand1])
+      And operand0 operand1 m -> ("and", map (O_From,) [operand0, operand1])
+      Or  operand0 operand1 m -> ("or",  map (O_From,) [operand0, operand1])
+      Xor operand0 operand1 m -> ("xor", map (O_From,) [operand0, operand1])
+      ICmp ipred operand0 operand1 m -> ("icmp", map (O_From,) [operand0, operand1])
+      ZExt operand ty m -> ("zext", map (O_From,) [operand])
+      Call tc cc ra f args fa m -> let fo = (fromRight (error "inline assembly encountered") f)
+                                   in ("call", (O_From, fo) : map ((O_From,). fst) args)
+      GetElementPtr inbounds address indices md -> ("gep", [(O_From, address)])
+      Store volatile address value maybeAtomicity alignment metadata -> ("store", [(O_From, value), (O_To, address)])
+      Load volatile address maybeAtomicity alignment metadata -> ("load", [(O_From, address)])
+      Alloca ty num alignment md -> ("alloca", [])
+      _     -> ("null", [])
 
-bg = PixelRGBA8 0 0 0 0
-drawColor = PixelRGBA8 0 0x86 0xc1 255
-recColor = PixelRGBA8 0xFF 0x53 0x73 255
-pal_white = PixelRGBA8 255 255 255 255
-pal_black = PixelRGBA8 0 0 0 255
+data E_Ty   = E_Fun | E_Label | E_Instruction | E_Terminator | E_Param | E_Operand | E_Store | E_Dest
+type E_Cell = (E_Ty, Int, Int, ByteString)
+
+ref :: Operand -> Maybe Name
+ref op = case op of
+  LocalReference ty name -> Just name
+  _ -> Nothing
+
+rast :: Name -> ByteString
+rast n = case n of
+  Name sbs -> fromShort sbs
+  UnName w -> "%" <> BS.pack (show w)
+
+scatter :: GatherState ->  E_Def -> [E_Cell]
+scatter s def = scat_def def
+  where
+    nm = name_map s
+
+    from_cell :: Int -> Name -> E_Cell
+    from_cell i n = (E_Operand, Map.findWithDefault (i+1) n nm, i, rast n)
+
+    to_cell :: Int -> Name -> E_Cell
+    to_cell i n = (E_Store, i, Map.findWithDefault (i+1) n nm, rast n)
+
+    op_cell :: Int -> (O_Type, Operand) -> Maybe E_Cell
+    op_cell i (ot, op) = case ot of
+      O_To -> ref op >>= (Just . to_cell i)
+      O_From -> ref op >>= (Just . from_cell i)
+
+    scat_inst (i, n, (n_i, ops))
+      = (catMaybes . map (op_cell i)) ops
+        ++ [(E_Instruction, i, i, rast n_i)]
+
+    scat_term i (n, maybe_op, ds, ts)
+      = (map (\(dest, t) -> (E_Dest, i, Map.findWithDefault (i + 1) dest nm, t))
+            (zip ds ts))
+        ++ maybeToList (maybe_op >>= ref >>= (Just . from_cell i))
+        ++ [(E_Terminator, i, i, rast n)]
+
+    scat_block (i, n, is, (term_i, term_n, t))
+       = scat_term term_i t
+         ++ (concatMap scat_inst is)
+         ++ [(E_Label, i, i, rast n)]
+
+    scat_param (i, n) = (E_Param, i, i, rast n)
+
+    scat_def :: E_Def -> [E_Cell]
+    scat_def (i, n, ps, blocks) = (E_Fun, i, i, rast n) : (concatMap scat_block blocks) ++ (map scat_param ps)
+
+bg         = PixelRGBA8 0 0 0 0
+drawColor  = PixelRGBA8 0 0x86 0xc1 255
+recColor   = PixelRGBA8 0xFF 0x53 0x73 255
+pal_white  = PixelRGBA8 255 255 255 255
+pal_black  = PixelRGBA8 0 0 0 255
 pal_yellow = PixelRGBA8 0xFF 0xF5 0x77 255
 pal_green  = PixelRGBA8 0x7d 0xce 0x82 255
 pal_red    = PixelRGBA8 0xff 0x70 0x85 255
@@ -192,32 +233,31 @@ ty_width ty = case ty of
   E_Param -> 4
   E_Dest -> 4
 
-
-t :: Int -> Font -> [(E_Ty, Int, Int, ByteString)] -> Image PixelRGBA8
-t spine_length font spine = renderDrawing size size pal_black $ do
+t :: Font -> Int -> [E_Cell] -> Image PixelRGBA8
+t font spine_length spine = renderDrawing size size pal_black $ do
           (flip traverse_) spine $ \(ty, row_i, col_i, t) -> do
             case compare col_i row_i of
               EQ -> pure ()
-              LT -> 
+              LT ->
                 withTexture (uniformTexture (ty_color ty)) $ do
                     stroke 1 JoinRound (CapRound, CapRound) $
-                      line (vec ((row_i + 1) * 48 - 2) (col_i * 48 - 2)) (vec ((row_i + 1) * 48 - 2) ((row_i + 1) * 48 - 2))
+                      line (vec ((row_i + 1) * 48) (col_i * 48)) (vec ((row_i + 1) * 48) ((row_i + 1) * 48))
                     stroke 1 JoinRound (CapRound, CapRound) $
-                      line (vec ((row_i + 1) * 48 - 2) (col_i * 48 - 2)) (vec (col_i * 48 - 2) (col_i * 48 - 2))
-              GT -> 
+                      line (vec ((row_i + 1) * 48) (col_i * 48)) (vec (col_i * 48) (col_i * 48))
+              GT ->
                 withTexture (uniformTexture (ty_color ty)) $ do
                     stroke 1 JoinRound (CapRound, CapRound) $
-                      line (vec (row_i * 48 - 2) ((col_i + 1) * 48 - 2)) (vec (row_i * 48 - 2) (row_i * 48 - 2))
+                      line (vec (row_i * 48) ((col_i + 1) * 48)) (vec (row_i * 48) (row_i * 48))
                     stroke 1 JoinRound (CapRound, CapRound) $
-                      line (vec (row_i * 48 - 2) ((col_i + 1) * 48 - 2)) (vec ((col_i + 1) * 48 - 2) ((col_i + 1) * 48 - 2))
+                      line (vec (row_i * 48) ((col_i + 1) * 48)) (vec ((col_i + 1) * 48) ((col_i + 1) * 48))
           (flip traverse_) spine $ \(ty, row_i, col_i, t) -> do
             withTexture (uniformTexture (ty_color ty)) $ do
               stroke (ty_width ty) JoinRound (CapRound, CapRound) $ do
-                rectangle (vec (row_i * 48 - 2) (col_i * 48 - 2)) 46 46
+                rectangle (vec (row_i * 48) (col_i * 48)) 46 46
             withTexture (uniformTexture pal_white) $ do
               stroke 2 JoinRound (CapRound, CapRound) $ do
-                rectangle (vec (row_i * 48 - 2) (col_i * 48 - 2)) 4 4
-              printTextAt font (PointSize 12) (vec (row_i * 48 + 4) (col_i * 48 + 16)) (BS.unpack t)
+                rectangle (vec (row_i * 48) (col_i * 48)) 4 4
+              printTextAt font (PointSize 12) (vec (row_i * 48 + 6) (col_i * 48 + 18)) (BS.unpack t)
   where
     size = spine_length * 48
     vec x y = V2 (fromIntegral x) (fromIntegral y)
@@ -227,51 +267,20 @@ main = do
   args <- getArgs
   let llfile = head (args ++ ["fib.ll"])
 
+  efont <- loadFontFile "../font.ttf"
+  let font = fromRight (error "could not load font") efont
+
+  zonedTime <- Time.getZonedTime
+  let file_name = Time.formatTime Time.defaultTimeLocale (Time.iso8601DateFormat (Just " %H-%M-%S")) zonedTime
+      fn i = "i/" ++ file_name ++ "-" ++ show i ++ ".png"
+
   m <- withContext $ \context -> do
       m <- withModuleFromLLVMAssembly context (File llfile) moduleAST
       bs <- withModuleFromAST context m moduleLLVMAssembly
       BS.putStrLn bs
       return m
 
-  let nerves = (scatter . gather) m
-      ins m i k = Map.insert k i m
-      first_pass (label_map, operand_map, i, prev) (ty, n, t) = case ty of
-        E_Label       -> (Map.insert t i label_map, operand_map, i + 1, (ty, n, i, t) : prev)
-        E_Instruction -> (label_map, ins operand_map i (fromMaybe (error "no name for instruction") n) ,    i + 1, (ty, n, i, t) : prev)
-        E_Param       -> (label_map, Map.insert t i operand_map, i + 1, (ty, n, i, t) : prev)
-        E_Terminator  -> (label_map, operand_map,                i + 1, (ty, n, i, t) : prev)
-        E_Fun         -> (label_map, operand_map,                i + 1, (ty, n, i, t) : prev)
-        E_Operand     -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
-        E_Store       -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
-        E_Dest        -> (label_map, operand_map,                i    , (ty, n, i, t) : prev)
+  let defs = (map (\(d, s) -> (next_index s, scatter s d)) . map (`runState` initialGather) . gather ) m
 
-      (label_map, operand_map, spine_length, nerves1) = foldl' first_pass (Map.empty, Map.empty, 0, []) nerves
-
-      second_pass prev (ty, n, i, t) = case ty of
-        E_Label       -> (ty, i, i, t) : prev
-        E_Instruction -> (ty, i, i, t) : prev
-        E_Param       -> (ty, i, i, t) : prev
-        E_Terminator  -> (ty, i, i, t) : prev
-        E_Fun         -> (ty, i, i, t) : prev
-        E_Operand     -> (ty, Map.findWithDefault 0 t operand_map, i, t) : prev
-        E_Store       -> (ty, i, Map.findWithDefault 0 t operand_map, t) : prev
-        E_Dest        -> (ty, i, Map.findWithDefault i (fromMaybe (error "unknown dest label") n) label_map, t) : prev
-
-      nerves2 = foldl' second_pass [] nerves1
-
-  efont <- loadFontFile "../font.ttf"
-  let font = fromRight (error "could not load font") efont
-  let ex = renderDrawing 400 200 pal_white $
-         withTexture (uniformTexture drawColor) $ do
-            fill $ circle (V2 0 0) 30
-            stroke 4 JoinRound (CapRound, CapRound) $
-                   circle (V2 400 200) 40
-            withTexture (uniformTexture recColor) .
-                   fill $ rectangle (V2 100 100) 200 100
-  let pi4 = (rotate (pi/4))
-
-  zonedTime <- Time.getZonedTime
-  let file_name = Time.formatTime Time.defaultTimeLocale (Time.iso8601DateFormat (Just " %H-%M-%S")) zonedTime
-      fn = "i/" ++ file_name ++ ".png"
-
-  writePng fn (t spine_length font nerves2)
+  traverse (\(i, (length, cells)) -> writePng (fn i) (t font length cells)) (zip [1..] defs)
+  pure ()
