@@ -4,7 +4,7 @@ Questioning machine presence.
 
 ### WHY?
 
-Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination.
+Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination. We should look at the wonderous over curious.
 
 ### HOW?
 
