@@ -1,6 +1,6 @@
 ## RW
 
-An experiment in code presentation.
+Investigating machine presence.
 
 ### WHY?
 
