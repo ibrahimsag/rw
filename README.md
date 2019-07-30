@@ -1,10 +1,10 @@
 ## RW
 
-Questioning machine presence.
+an experiment in presenting code.
 
 ### WHY?
 
-Real takes detail. Screens can support it.
+Assembly languages can be useful for assembling.
 
 ### HOW?
 
@@ -47,6 +47,6 @@ Easing the burden on heroic compilers and creating dwelling space close to machi
 
 Streamlined incremental compilation infrastructure is probably not a utopian dream.
 
-The same spinal layout can be applied in different settings. Graphs are all around. This will be a first in a series of experiments to play with the representation as it is unique in being transparent.
+Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination. We should look at the wonderous over curious.
 
-Document jumps or interactive tv make for astronomical burden on imagination. We should look at the wonderous over curious.
+The same spinal layout can be applied in different settings. Graphs are all around. This will be a first in a series of experiments to play with the representation as it is unique in being transparent.
