@@ -18,10 +18,10 @@ The actual experiment here is to anchor the sequential spine along the diagonal 
 Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. We are not talking about a half-baked graph layout. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
 Cells around the diagonal represent local links; reaching further out around the corner.
 
-Here is an initial rendering on spreadsheet, start from the bottom right and climb up to return statement
-on the top left. Work against gravitational potential is too good to pass.
-
 ![](images/FactorialRed.png)
+
+Above is an initial rendering on a spreadsheet. Start from the bottom right and climb up to return statement
+on the top left. Work against gravitational potential is too good to pass.
 
 ### WHERE?
 
