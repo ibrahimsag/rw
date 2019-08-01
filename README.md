@@ -23,13 +23,66 @@ on the top left. Work against gravitational potential is too good to pass.
 
 ![](images/FactorialRed.png)
 
-Here is the current presentation for factorial computation.
+### WHERE?
 
 ![](images/factorial.png)
 
-Here is for fibonacci with some pointer operations on the stack.
+```LLVM
+define i32 @factorial(i32 %n) {
+entry:
+  %i_initial = add i32 2, 0
+  %f_initial = add i32 1, 0
+  br label %check
+check:
+  %c_i = phi i32 [%i_initial, %entry], [%i_pp, %loop]
+  %c_f = phi i32 [%f_initial, %entry], [%n_f, %loop]
+  %i_leq = icmp sle i32 %c_i, %n
+  br i1 %i_leq, label %loop, label %fin
+loop:
+  %n_f = mul i32 %c_f, %c_i
+  %i_pp = add i32 %c_i, 1
+  br label %check
+fin:
+  %r = phi i32 [%c_f, %check]
+  ret i32 %r
+}
+```
+Above is the current presentation for factorial computation along with the llvm assembly input.
+
 
 ![](images/fib_on_stack.png)
+```LLVM
+%ab = type {i32, i32}
+
+define i32 @fibonacci(i32 %n) {
+entry:
+  %p = alloca %ab
+  %p_a = getelementptr %ab, %ab* %p, i32 0, i32 0
+  store i32 1, i32* %p_a
+  %p_b = getelementptr %ab, %ab* %p, i32 0, i32 1
+  store i32 1, i32* %p_b
+
+  %i_init = add i32 1, 0
+  br label %check
+check:
+  %c_i = phi i32 [%i_init, %entry], [%i_pp, %loop]
+  %i_leq = icmp sle i32 %c_i, %n
+  br i1 %i_leq, label %loop, label %fin
+loop:
+  %c_a = load i32, i32* %p_a
+  %c_b = load i32, i32* %p_b
+  %n_b = add i32 %c_a, %c_b
+  store i32 %c_b, i32* %p_a
+  store i32 %n_b, i32* %p_b
+
+  %i_pp = add i32 %c_i, 1
+  br label %check
+fin:
+  %r = load i32, i32* %p_b
+  ret i32 %r
+}
+```
+Above is for fibonacci with some pointer operations on the stack. Load and store is just too good to not see.
 
 We let go of static renderings beyond these examples. At least in full detail. Some
 form of folding is in the works.
