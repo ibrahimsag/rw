@@ -1,10 +1,10 @@
 ## RW
 
-an experiment in presenting code.
+an experiment in presenting code
 
 ### WHY?
 
-Assembly languages can be useful for assembling.
+Articulation is. Incantation was not.
 
 ### HOW?
 
@@ -89,7 +89,7 @@ form of folding is in the works.
 
 ### WHEN?
 
-It would not have been wise to deal with sparse matrices on paper. Digital displays, on the other hand, is full of surprises.
+It would not have been wise to deal with sparse matrices on paper. Digital displays, on the other hand, are full of surprises.
 
 ### ASPIRATIONS
 
@@ -98,8 +98,10 @@ It would be good to have tools and toys we can break and make again. We need cou
 OS-COMPILER-EDITOR trio got somehow buried under the drag-n-drop interfaces and object oriented technology.
 Easing the burden on heroic compilers and creating dwelling space close to machines may provide worthy challenges.
 
-Streamlined incremental compilation infrastructure is probably not a utopian dream.
-
 Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination. We should look at the wonderous over curious.
+
+Assembly languages can be useful for assembling. 
+
+Streamlined incremental compilation infrastructure is probably not a utopian dream.
 
 The same spinal layout can be applied in different settings. Graphs are all around. This will be a first in a series of experiments to play with the representation as it is unique in being transparent.
