@@ -4,7 +4,7 @@ an experiment in presenting code
 
 ### WHY?
 
-Articulation is. Incantation was not.
+Spatial representation is of fundamental importance. It is the ground of meaning for a species that devoted more than half the neural processing power on tactile and visual stimuli. Failure of clumsy flow charts can't exhaust that.
 
 ### HOW?
 
