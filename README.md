@@ -13,9 +13,9 @@ Sparse matrices are easy to read. Machines already excel at them. Digital displa
 Sequence of instructions, hierarchy of syntax, web of bindings. All three need to be ready
 for code to be present.
 
-The actual experiment here is to anchor the sequential spine along the diagonal of an adjacency matrix.
+The actual experiment here is to anchor the fractal sequence along the diagonal of an adjacency matrix.
 
-Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. We are not talking about a half-baked graph layout. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
+Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
 Cells around the diagonal represent local links; reaching further out around the corner.
 
 ![](images/FactorialRed.png)
@@ -101,8 +101,6 @@ Streamlined incremental compilation infrastructure is probably not a utopian dre
 OS-COMPILER-EDITOR trio got somehow buried under the drag-n-drop interfaces and object oriented technology.
 Easing the burden on heroic compilers and creating dwelling space close to machines may provide worthy challenges.
 
-Real takes detail. Screens can support it. Document jumps or interactive tv make for astronomical burden on imagination. We should look at the wonderous over curious.
-
 Space is the ground of meaning for a species dedicating more than half the neural processing on tactile and visual stimuli. Clumsy flow charts can not exhaust that.
 
-The same spinal layout can be applied in different settings. Graphs are all around. This will be a first in a series of experiments to play with the representation as it is unique in being transparent.
+Real takes detail. Screens can support it. Document jumps and interactive TV make for astronomical burden on imagination. We should look at the wonderous over curious.
