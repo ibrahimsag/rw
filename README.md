@@ -4,7 +4,7 @@ an experiment in presenting code
 
 ### WHY?
 
-Spatial representation is important.
+Assembly languages can be useful for assembling.
 
 ### HOW?
 
@@ -15,7 +15,7 @@ for code to be present.
 
 The actual experiment here is to anchor the fractal sequence along the diagonal of an adjacency matrix.
 
-Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. The interwoven structure can be read from the links scattered across the matrix, faithfully and transparently.
+Orthogonal frames nest very easily. Control-flow and data-flow graphs are not blurred. The interwoven structure can be read from the links scattered across the matrix.
 Cells around the diagonal represent local links; reaching further out around the corner.
 
 ![](images/FactorialRed.png)
@@ -93,10 +93,6 @@ It would not have been wise to deal with sparse matrices on paper. Digital displ
 ### ASPIRATIONS
 
 It would be good to have tools and toys we can break and make again. We need couplings we can trace and coalesce.
-
-Assembly languages can be useful for assembling. 
-
-Streamlined incremental compilation infrastructure is probably not a utopian dream.
 
 OS-COMPILER-EDITOR trio got somehow buried under the drag-n-drop interfaces and object oriented technology.
 Easing the burden on heroic compilers and creating dwelling space close to machines may provide worthy challenges.
